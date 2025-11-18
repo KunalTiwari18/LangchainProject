@@ -1,27 +1,20 @@
 import streamlit as st
 from transformers import pipeline
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from gtts import gTTS
 from io import BytesIO
-import base64
 
-# ---------------------------
-# PAGE CONFIG
-# ---------------------------
 st.set_page_config(
-    page_title="Pro PDF Summarizer",
+    page_title="LexiSummarize – Smart PDF Summarizer",
     page_icon="📘",
     layout="wide"
 )
 
-# ---------------------------
-# HEADER
-# ---------------------------
 st.markdown("""
 <style>
     .main-title {
-        font-size: 40px;
+        font-size: 42px;
         font-weight: 700;
         text-align: center;
         color: #2C3E50;
@@ -53,39 +46,24 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<div class='main-title'>📘 Professional PDF Summarizer</div>", unsafe_allow_html=True)
-st.markdown("<div class='sub-text'>Upload a PDF → Summarize → Download → Listen</div>", unsafe_allow_html=True)
+st.markdown("<div class='main-title'>📘 LexiSummarize</div>", unsafe_allow_html=True)
+st.markdown("<div class='sub-text'>Smart PDF Summarizer & Voice Reader</div>", unsafe_allow_html=True)
 
-# ---------------------------
-# SIDEBAR
-# ---------------------------
-st.sidebar.header("⚙ Settings")
-chunk_size = st.sidebar.slider("Text Chunk Size", 500, 3000, 1500)
-summary_length = st.sidebar.slider("Summary Length (Max Tokens)", 50, 300, 180)
-
-st.sidebar.markdown("---")
-st.sidebar.info("This app uses *BART Large CNN* model (open-source, no API keys 🟢).")
-
-
-# ---------------------------
-# LOAD MODEL
-# ---------------------------
 @st.cache_resource
 def load_summarizer():
     return pipeline("summarization", model="facebook/bart-large-cnn")
 
 summarizer = load_summarizer()
 
+st.sidebar.header("⚙ Settings")
+chunk_size = st.sidebar.slider("Chunk Size", 500, 3000, 1500)
+summary_length = st.sidebar.slider("Final Summary Length", 80, 300, 200)
+st.sidebar.markdown("---")
+st.sidebar.info("LexiSummarize uses the BART Large CNN model. No API key required.")
 
-# ---------------------------
-# FILE UPLOAD
-# ---------------------------
-st.markdown("<div class='section-title'>📤 Upload Your PDF</div>", unsafe_allow_html=True)
+st.markdown("<div class='section-title'>📤 Upload PDF</div>", unsafe_allow_html=True)
 pdf_file = st.file_uploader("", type=["pdf"])
 
-# ---------------------------
-# PROCESS PDF
-# ---------------------------
 if pdf_file:
     with open("temp.pdf", "wb") as f:
         f.write(pdf_file.getvalue())
@@ -96,51 +74,47 @@ if pdf_file:
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=200)
     docs = text_splitter.split_documents(pages)
 
-    full_text = " ".join([d.page_content for d in docs])
+    st.info(f"PDF Loaded ✔ Total Chunks: {len(docs)}")
 
-    st.markdown("<div class='section-title'>📝 Generating Summary...</div>", unsafe_allow_html=True)
+    chunk_summaries = []
     progress = st.progress(0)
 
-    # Update progress
-    progress.progress(30)
+    for i, d in enumerate(docs):
+        part = summarizer(
+            d.page_content,
+            max_length=summary_length,
+            min_length=60,
+            do_sample=False
+        )[0]["summary_text"]
+        chunk_summaries.append(part)
+        progress.progress((i + 1) / len(docs))
 
-    summary = summarizer(
-        full_text,
+    combined_text = " ".join(chunk_summaries)
+
+    final_summary = summarizer(
+        combined_text,
         max_length=summary_length,
-        min_length=60,
+        min_length=80,
         do_sample=False
     )[0]["summary_text"]
 
-    progress.progress(100)
-    st.success("Summary generated successfully!")
+    st.success("Summary Generated Successfully ✔")
 
-    # ---------------------------
-    # SHOW SUMMARY
-    # ---------------------------
-    st.markdown("<div class='section-title'>📌 Summary</div>", unsafe_allow_html=True)
-    st.write(summary)
-
-    # ---------------------------
-    # DOWNLOAD SUMMARY
-    # ---------------------------
-    summary_bytes = summary.encode("utf-8")
+    st.markdown("<div class='section-title'>📌 Final Summary</div>", unsafe_allow_html=True)
+    st.write(final_summary)
 
     st.download_button(
-        label="⬇ Download Summary as TXT",
-        data=summary_bytes,
-        file_name="summary.txt",
-        mime="text/plain",
+        label="⬇ Download Summary (TXT)",
+        data=final_summary.encode("utf-8"),
+        file_name="LexiSummary.txt",
+        mime="text/plain"
     )
 
-    # ---------------------------
-    # TEXT TO SPEECH
-    # ---------------------------
-    st.markdown("<div class='section-title'>🔊 Listen to Summary</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-title'>🔊 Summary Voice Reader</div>", unsafe_allow_html=True)
 
-    if st.button("🔊 Generate Voice"):
-        tts = gTTS(summary, lang="en")
-        audio_bytes = BytesIO()
-        tts.write_to_fp(audio_bytes)
-        audio_bytes.seek(0)
-
-        st.audio(audio_bytes, format="audio/mp3")
+    if st.button("🔊 Speak Summary"):
+        tts = gTTS(final_summary, lang="en")
+        audio = BytesIO()
+        tts.write_to_fp(audio)
+        audio.seek(0)
+        st.audio(audio, format="audio/mp3")
