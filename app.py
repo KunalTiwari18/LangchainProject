@@ -1,7 +1,7 @@
 import streamlit as st
 from transformers import pipeline
 from langchain_community.document_loaders import PyPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from gtts import gTTS
 from io import BytesIO
 
@@ -118,3 +118,4 @@ if pdf_file:
         tts.write_to_fp(audio)
         audio.seek(0)
         st.audio(audio, format="audio/mp3")
+
