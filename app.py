@@ -9,12 +9,12 @@ st.set_page_config(page_title="LexiSummarize – Smart PDF Summarizer", page_ico
 
 @st.cache_resource
 def load_summarizer():
-    return pipeline("summarization", model="t5-base")
+    return pipeline("summarization", model="sshleifer/distilbart-cnn-12-6")
 
 summarizer = load_summarizer()
 
 def recursive_summarize(text, max_len):
-    splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=200)
+    splitter = RecursiveCharacterTextSplitter(chunk_size=3000, chunk_overlap=100)
     chunks = splitter.split_text(text)
     summaries = []
     for chunk in chunks:
@@ -72,3 +72,4 @@ if pdf_file:
         audio.seek(0)
 
         st.audio(audio, format="audio/mp3")
+
