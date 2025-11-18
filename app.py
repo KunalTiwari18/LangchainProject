@@ -9,7 +9,7 @@ st.set_page_config(page_title="LexiSummarize – Smart PDF Summarizer", page_ico
 
 @st.cache_resource
 def load_summarizer():
-    return pipeline("summarization", model="facebook/bart-large-cnn")
+    return pipeline("summarization", model="t5-base")
 
 summarizer = load_summarizer()
 
@@ -70,4 +70,5 @@ if pdf_file:
         audio = BytesIO()
         tts.write_to_fp(audio)
         audio.seek(0)
+
         st.audio(audio, format="audio/mp3")
