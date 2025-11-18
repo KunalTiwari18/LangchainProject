@@ -76,23 +76,29 @@ if pdf_file:
 
     st.info(f"PDF Loaded ✔ Total Chunks: {len(docs)}")
 
-    chunk_summaries = []
+    # ---- FIXED CHUNK SUMMARIZATION ----
+    summaries = []
     progress = st.progress(0)
 
-    for i, d in enumerate(docs):
-        part = summarizer(
-            d.page_content,
+    total_chunks = len(docs)
+
+    for i, doc in enumerate(docs):
+        partial_summary = summarizer(
+            doc.page_content,
             max_length=summary_length,
             min_length=60,
             do_sample=False
         )[0]["summary_text"]
-        chunk_summaries.append(part)
-        progress.progress((i + 1) / len(docs))
 
-    combined_text = " ".join(chunk_summaries)
+        summaries.append(partial_summary)
+        progress.progress(int((i + 1) / total_chunks * 100))
 
+    # Combine summaries safely
+    combined_summary_text = " ".join(summaries)
+
+    # Final clean summary
     final_summary = summarizer(
-        combined_text,
+        combined_summary_text,
         max_length=summary_length,
         min_length=80,
         do_sample=False
@@ -118,4 +124,3 @@ if pdf_file:
         tts.write_to_fp(audio)
         audio.seek(0)
         st.audio(audio, format="audio/mp3")
-
